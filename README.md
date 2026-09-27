@@ -57,7 +57,7 @@ Accessing the ALB DNS endpoint demonstrates round-robin traffic distribution bet
 
 1. Clone this repository:
    ```bash
-   git clone [https://github.com/](https://github.com/)1YUVARAJ1/aws-2tier-architecture.git
+   git clone https://github.com/1YUVARAJ1/aws-2tier-architecture.git
    cd aws-2tier-architecture
    ```
 2. Initialize and deploy with Terraform:
