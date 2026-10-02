@@ -10,6 +10,76 @@ Automated deployment of an isolated, multi-VPC, highly available 2-Tier web infr
 * **Tier 2 (Application / Compute Layer):** Two Apache web servers hosted on `t3.micro` EC2 instances in separate public subnets, protected by security groups that only permit HTTP ingress directly from the ALB.
 * **Isolated Customer VPC & Peering:** A separate private VPC (`11.0.0.0/16`) connected via AWS VPC Peering for non-internet, cross-VPC communication.
 
+
+```mermaid
+flowchart TB
+    subgraph ClientLayer ["Client Layer"]
+        User(("👤 User / Browser"))
+    end
+
+    subgraph AWS ["AWS Cloud (eu-north-1)"]
+        IGW["🌐 Internet Gateway (IGW)"]
+
+        subgraph SoftwareVPC ["Software VPC (10.0.0.0/16)"]
+            RT1["Route Table (Software-VPC)\n0.0.0.0/0 ➔ IGW\n11.0.0.0/16 ➔ Peering Connection"]
+            
+            subgraph ALB_Layer ["Ingress Tier (Presentation)"]
+                ALB["⚖️ Application Load Balancer (app-lb)\nInternet-Facing | Port 80"]
+            end
+
+            subgraph SubnetA ["Public Subnet 1 (10.0.1.0/24) | eu-north-1a"]
+                EC2_1["🖥️ Web-Server-1 (t3.micro)\nApache HTTPD | Port 80"]
+            end
+
+            subgraph SubnetB ["Public Subnet 2 (10.0.2.0/24) | eu-north-1b"]
+                EC2_2["🖥️ Web-Server-2 (t3.micro)\nApache HTTPD | Port 80"]
+            end
+        end
+
+        subgraph PeeringArea ["Private Inter-VPC Connectivity"]
+            PCX["🔗 AWS VPC Peering Connection\n(pcx-0b33a6fe313afb865)"]
+            
+        end
+
+        subgraph CustomerVPC ["Customer VPC (11.0.0.0/16)"]
+            RT2["Route Table (Customer-VPC)\n10.0.0.0/16 ➔ Peering Connection"]
+
+            subgraph SubnetC ["Customer Private Subnet (11.0.1.0/24) | eu-north-1a"]
+                EC2_3["🔒 Customer-Private-Instance (t3.micro)\nNo Public IP | ICMP Test Node"]
+            end
+        end
+    end
+
+    %% Ingress Traffic Flow
+    User -->|"1. HTTP Request (Port 80)"| ALB
+    ALB -.->|"Passes through"| IGW
+    IGW --> RT1
+    ALB -->|"2. Round-Robin Balancing"| EC2_1
+    ALB -->|"2. Round-Robin Balancing"| EC2_2
+
+    %% Peering Traffic Flow
+    EC2_1 <--->|"3. Private Peering Traffic (ICMP / 10.0.0.0/16)"| PCX
+    EC2_2 <--->|"3. Private Peering Traffic (ICMP / 10.0.0.0/16)"| PCX
+    PCX <--->|"4. Private Internal Network (11.0.0.0/16)"| EC2_3
+    
+    RT1 -.->|"Routes 11.0.0.0/16"| PCX
+    RT2 -.->|"Routes 10.0.0.0/16"| PCX
+
+    classDef vpc fill:#1e293b,stroke:#38bdf8,stroke-width:2px,color:#f8fafc;
+    classDef subnet fill:#0f172a,stroke:#64748b,stroke-width:1px,color:#f8fafc;
+    classDef node fill:#0369a1,stroke:#38bdf8,stroke-width:1px,color:#ffffff;
+    classDef lb fill:#7c3aed,stroke:#c084fc,stroke-width:1px,color:#ffffff;
+    classDef peer fill:#065f46,stroke:#34d399,stroke-width:2px,color:#ffffff;
+
+    class SoftwareVPC,CustomerVPC vpc;
+    class SubnetA,SubnetB,SubnetC subnet;
+    class EC2_1,EC2_2,EC2_3 node;
+    class ALB lb;
+    class PCX peer;
+```
+
+
+
 ---
 
 ## Verification & Proof of Deployment
